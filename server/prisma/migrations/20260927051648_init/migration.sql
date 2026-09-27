@@ -1,0 +1,38 @@
+-- CreateTable
+CREATE TABLE "Map" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "imageUrl" TEXT NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Character" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL,
+    "avatarUrl" TEXT NOT NULL,
+    "xMin" REAL NOT NULL,
+    "xMax" REAL NOT NULL,
+    "yMin" REAL NOT NULL,
+    "yMax" REAL NOT NULL,
+    "mapId" INTEGER NOT NULL,
+    CONSTRAINT "Character_mapId_fkey" FOREIGN KEY ("mapId") REFERENCES "Map" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "GameSession" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "startTime" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "endTime" DATETIME,
+    "mapId" INTEGER NOT NULL,
+    CONSTRAINT "GameSession_mapId_fkey" FOREIGN KEY ("mapId") REFERENCES "Map" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "Score" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "playerName" TEXT NOT NULL,
+    "timeInSeconds" REAL NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "mapId" INTEGER NOT NULL,
+    CONSTRAINT "Score_mapId_fkey" FOREIGN KEY ("mapId") REFERENCES "Map" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);

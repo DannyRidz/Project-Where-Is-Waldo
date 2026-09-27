@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Map {
+  id          Int           @id @default(autoincrement())
+  name        String
+  imageUrl    String
+  characters  Character[]
+  sessions    GameSession[]
+  scores      Score[]
+}
+
+model Character {
+  id        Int     @id @default(autoincrement())
+  name      String
+  avatarUrl String
+  // Normalized percentage coordinate bounding box (0.0 to 100.0)
+  xMin      Float
+  xMax      Float
+  yMin      Float
+  yMax      Float
+  mapId     Int
+  map       Map     @relation(fields: [mapId], references: [id], onDelete: Cascade)
+}
+
+model GameSession {
+  id        String    @id @default(uuid())
+  startTime DateTime  @default(now())
+  endTime   DateTime?
+  mapId     Int
+  map       Map       @relation(fields: [mapId], references: [id], onDelete: Cascade)
+}
+
+model Score {
+  id            Int      @id @default(autoincrement())
+  playerName    String
+  timeInSeconds Float
+  createdAt     DateTime @default(now())
+  mapId         Int
+  map           Map      @relation(fields: [mapId], references: [id], onDelete: Cascade)
+}
