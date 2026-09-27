@@ -220,3 +220,89 @@ body {
   border-radius: 50%;
   background: #ffffff;
 }
+
+/* Toast Notification */
+.feedback-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  z-index: 1000;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  pointer-events: none;
+}
+
+.feedback-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.feedback-toast.success {
+  background: #166534;
+  color: #dcfce7;
+  border: 1px solid #22c55e;
+}
+
+.feedback-toast.error {
+  background: #7f1d1d;
+  color: #fee2e2;
+  border: 1px solid #ef4444;
+}
+
+/* Found Character Marker */
+.found-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  animation: marker-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 40;
+}
+
+@keyframes marker-pop {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.found-marker-checkmark {
+  width: 32px;
+  height: 32px;
+  background: #16a34a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  box-shadow:
+    0 0 0 3px #ffffff,
+    0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.found-marker-label {
+  background: rgba(22, 163, 74, 0.9);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
