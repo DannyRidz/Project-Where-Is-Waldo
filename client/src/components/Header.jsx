@@ -1,6 +1,10 @@
-import Timer from "./Timer";
-
-function Header({ characters, foundCharacters, isGameActive }) {
+function Header({
+  characters,
+  foundCharacters,
+  isGameActive,
+  elapsedSeconds,
+  formatTime,
+}) {
   return (
     <header className="game-header">
       <div className="header-left">
@@ -29,7 +33,9 @@ function Header({ characters, foundCharacters, isGameActive }) {
       </div>
 
       <div className="header-right">
-        <Timer isRunning={isGameActive} />
+        <div className="timer-badge">
+          ⏱️ <span>{formatTime(elapsedSeconds)}</span>
+        </div>
       </div>
     </header>
   );
