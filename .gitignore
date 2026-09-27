@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Database file — contains real data, should never be committed
+server/prisma/dev.db
+server/prisma/dev.db-journal
+
+# Environment variables — may contain secrets
+.env
+
+# Build output
+dist/
+build/
