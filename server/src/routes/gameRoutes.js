@@ -4,6 +4,23 @@ import { PrismaClient } from "@prisma/client";
 const router = Router();
 const prisma = new PrismaClient();
 
+// 0. Fetch all maps
+router.get("/maps", async (req, res) => {
+  try {
+    const maps = await prisma.map.findMany({
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+      },
+    });
+    res.json(maps);
+  } catch (error) {
+    console.error("Error fetching maps:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // 1. Fetch map data and list of characters (WITHOUT coordinates)
 router.get("/maps/:id", async (req, res) => {
   try {

@@ -13,36 +13,32 @@ async function main() {
   const beachMap = await prisma.map.create({
     data: {
       name: "Waldo at the Beach",
-      imageUrl:
-        "https://raw.githubusercontent.com/TheOdinProject/curriculum/main/react/react_and_the_backend/project_wheres_waldo_a_photo_tagging_app/imgs/waldo.jpg",
+      imageUrl: "/images/waldo-beach.jpg",
       characters: {
         create: [
           {
             name: "Waldo",
-            avatarUrl:
-              "https://upload.wikimedia.org/wikipedia/en/b/bb/Where%27s_Wally_character.png",
-            xMin: 60.0,
-            xMax: 63.5,
-            yMin: 32.5,
-            yMax: 36.5,
+            avatarUrl: "/images/waldo.svg",
+            xMin: 59.0,
+            xMax: 64.0,
+            yMin: 32.0,
+            yMax: 37.0,
           },
           {
             name: "Wizard Whitebeard",
-            avatarUrl:
-              "https://static.wikia.nocookie.net/waldo/images/c/c6/Wizard_Whitebeard.png",
-            xMin: 86.5,
-            xMax: 89.5,
-            yMin: 35.5,
-            yMax: 39.5,
+            avatarUrl: "/images/wizard.svg",
+            xMin: 85.5,
+            xMax: 90.5,
+            yMin: 35.0,
+            yMax: 40.0,
           },
           {
             name: "Odlaw",
-            avatarUrl:
-              "https://static.wikia.nocookie.net/waldo/images/7/77/Odlaw.png",
-            xMin: 22.0,
-            xMax: 25.0,
-            yMin: 33.0,
-            yMax: 37.0,
+            avatarUrl: "/images/odlaw.svg",
+            xMin: 21.0,
+            xMax: 26.0,
+            yMin: 32.5,
+            yMax: 37.5,
           },
         ],
       },
