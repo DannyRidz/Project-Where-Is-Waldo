@@ -4,6 +4,7 @@ import FoundMarker from "./FoundMarker";
 
 function GameImage({ map, foundCharacters, foundMarkers, onSelectCharacter }) {
   const [targetingPosition, setTargetingPosition] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
   if (!map) return <div className="loading-state">Loading map...</div>;
 
@@ -35,12 +36,19 @@ function GameImage({ map, foundCharacters, foundMarkers, onSelectCharacter }) {
   return (
     <div className="image-viewport">
       <div className="image-wrapper" onClick={handleImageClick}>
-        <img
-          src={map.imageUrl}
-          alt={map.name}
-          className="waldo-image"
-          draggable={false}
-        />
+        {imageError ? (
+          <div className="image-error" role="alert">
+            The map image could not be loaded. Refresh the page and try again.
+          </div>
+        ) : (
+          <img
+            src={map.imageUrl}
+            alt={map.name}
+            className="waldo-image"
+            draggable={false}
+            onError={() => setImageError(true)}
+          />
+        )}
 
         {/* Interactive Targeting Box */}
         <TargetingBox

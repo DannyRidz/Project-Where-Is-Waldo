@@ -3,19 +3,13 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // Clear any existing data
-  await prisma.score.deleteMany();
-  await prisma.gameSession.deleteMany();
-  await prisma.character.deleteMany();
-  await prisma.map.deleteMany();
-
-  // Create the main Waldo beach map with 3 target characters
-  const beachMap = await prisma.map.create({
-    data: {
+  // Store each map and its locations together. Existing scores and sessions
+  // are retained when you re-run the seed script.
+  const maps = [
+    {
       name: "Waldo at the Beach",
       imageUrl: "/images/waldo-beach.jpg",
-      characters: {
-        create: [
+      characters: [
           {
             name: "Waldo",
             avatarUrl: "/images/waldo.svg",
@@ -40,12 +34,31 @@ async function main() {
             yMin: 32.5,
             yMax: 37.5,
           },
-        ],
-      },
+      ],
     },
-  });
+    {
+      name: "The Gobbling Gluttons",
+      imageUrl: "/images/waldo-gluttons.jpg",
+      characters: [
+        // The source dataset includes Waldo labels; this map intentionally
+        // asks the player to find Waldo only.
+        { name: "Waldo", avatarUrl: "/images/waldo.svg", xMin: 90, xMax: 99, yMin: 27, yMax: 38 },
+      ],
+    },
+  ];
 
-  console.log(`Seeded map: "${beachMap.name}" with ID: ${beachMap.id}`);
+  for (const mapData of maps) {
+    const { characters, ...map } = mapData;
+    const existingMap = await prisma.map.findFirst({
+      where: { OR: [{ name: map.name }, { name: "The Colorful Crowd" }] },
+    });
+    const data = { ...map, characters: { deleteMany: {}, create: characters } };
+    const created = existingMap
+      ? await prisma.map.update({ where: { id: existingMap.id }, data })
+      : await prisma.map.create({ data: { ...map, characters: { create: characters } } });
+    console.log(`Seeded map: "${created.name}" with ID: ${created.id}`);
+  }
+
 }
 
 main()

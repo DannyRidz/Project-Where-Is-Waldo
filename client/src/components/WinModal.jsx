@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 
-function WinModal({ sessionId, mapId, finalTime, apiBase, onPlayAgain }) {
+function WinModal({
+  sessionId,
+  mapId,
+  mapName,
+  finalTime,
+  apiBase,
+  onPlayAgain,
+}) {
   const [playerName, setPlayerName] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,7 +100,7 @@ function WinModal({ sessionId, mapId, finalTime, apiBase, onPlayAgain }) {
           /* Leaderboard Screen */
           <>
             <h2 className="modal-title">🏆 Top Scores</h2>
-            <p className="modal-subtitle">Waldo at the Beach</p>
+            <p className="modal-subtitle">{mapName}</p>
             <div className="leaderboard">
               {leaderboard.length === 0 ? (
                 <p className="leaderboard-empty">

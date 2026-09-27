@@ -9,6 +9,8 @@ const API_BASE = "http://localhost:5001/api";
 
 function App() {
   const [map, setMap] = useState(null);
+  const [maps, setMaps] = useState([]);
+  const [selectedMapId, setSelectedMapId] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [foundCharacters, setFoundCharacters] = useState([]);
   const [foundMarkers, setFoundMarkers] = useState([]);
@@ -19,7 +21,21 @@ function App() {
   const [showWinModal, setShowWinModal] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  const initGame = async () => {
+  const loadMaps = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/maps`);
+      const availableMaps = await response.json();
+      setMaps(availableMaps);
+      if (availableMaps.length) setSelectedMapId(availableMaps[0].id);
+    } catch (err) {
+      console.error("Failed to load maps:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const initGame = async (mapId = selectedMapId) => {
+    if (!mapId) return;
     try {
       setIsLoading(true);
       setFoundCharacters([]);
@@ -28,19 +44,14 @@ function App() {
       setElapsedSeconds(0);
       setToast(null);
 
-      const mapsRes = await fetch(`${API_BASE}/maps`);
-      const maps = await mapsRes.json();
-      if (!maps || maps.length === 0) return;
-
-      const currentMapId = maps[0].id;
-      const mapDetailRes = await fetch(`${API_BASE}/maps/${currentMapId}`);
+      const mapDetailRes = await fetch(`${API_BASE}/maps/${mapId}`);
       const mapData = await mapDetailRes.json();
       setMap(mapData);
 
       const sessionRes = await fetch(`${API_BASE}/sessions/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mapId: currentMapId }),
+        body: JSON.stringify({ mapId }),
       });
       const sessionData = await sessionRes.json();
       setSessionId(sessionData.sessionId);
@@ -54,7 +65,7 @@ function App() {
 
   // Initialize on first load
   useEffect(() => {
-    initGame();
+    loadMaps();
   }, []);
 
   // Timer — tick while game is active
@@ -147,8 +158,30 @@ function App() {
       <main className="game-main">
         {isLoading ? (
           <div className="loading-spinner">Loading game map...</div>
+        ) : !map ? (
+          <section className="map-picker">
+            <h2>Choose your search</h2>
+            <p>Pick a scene to start a new game.</p>
+            <div className="map-cards">
+              {maps.map((availableMap) => (
+                <button
+                  className={`map-card ${selectedMapId === availableMap.id ? "selected" : ""}`}
+                  key={availableMap.id}
+                  onClick={() => setSelectedMapId(availableMap.id)}
+                  aria-pressed={selectedMapId === availableMap.id}
+                >
+                  <img src={availableMap.imageUrl} alt="" />
+                  <span>{availableMap.name}</span>
+                </button>
+              ))}
+            </div>
+            <button className="start-game-button" onClick={() => initGame()} disabled={!selectedMapId}>
+              Start game
+            </button>
+          </section>
         ) : (
           <GameImage
+            key={map.id}
             map={map}
             foundCharacters={foundCharacters}
             foundMarkers={foundMarkers}
@@ -161,9 +194,10 @@ function App() {
         <WinModal
           sessionId={sessionId}
           mapId={map?.id}
+          mapName={map?.name}
           finalTime={elapsedSeconds}
           apiBase={API_BASE}
-          onPlayAgain={initGame}
+          onPlayAgain={() => initGame(map?.id)}
         />
       )}
     </div>
