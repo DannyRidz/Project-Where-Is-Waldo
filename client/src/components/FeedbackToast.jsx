@@ -1,18 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 function FeedbackToast({ message, type, onDismiss }) {
   const [visible, setVisible] = useState(false);
+  const dismissRef = useRef(onDismiss);
+
+  useEffect(() => {
+    dismissRef.current = onDismiss;
+  }, [onDismiss]);
 
   useEffect(() => {
     if (!message) return;
 
-    setVisible(true);
-    const timer = setTimeout(() => {
+    const showTimer = setTimeout(() => setVisible(true), 0);
+    const hideTimer = setTimeout(() => {
       setVisible(false);
-      setTimeout(onDismiss, 300); // Wait for fade-out before clearing
+      setTimeout(() => dismissRef.current(), 300); // Wait for fade-out before clearing
     }, 2000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(hideTimer);
+    };
   }, [message]);
 
   if (!message) return null;

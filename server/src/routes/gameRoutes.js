@@ -56,14 +56,19 @@ router.get("/maps/:id", async (req, res) => {
 // 2. Start a new game session (records start time on server)
 router.post("/sessions/start", async (req, res) => {
   try {
-    const { mapId } = req.body;
-    if (!mapId) {
+    const mapId = Number.parseInt(req.body.mapId, 10);
+    if (!Number.isInteger(mapId)) {
       return res.status(400).json({ error: "mapId is required" });
+    }
+
+    const map = await prisma.map.findUnique({ where: { id: mapId } });
+    if (!map) {
+      return res.status(404).json({ error: "Map not found" });
     }
 
     const session = await prisma.gameSession.create({
       data: {
-        mapId: parseInt(mapId, 10),
+        mapId,
         startTime: new Date(),
       },
     });
@@ -100,8 +105,11 @@ router.post("/sessions/:sessionId/validate", async (req, res) => {
     }
 
     // Look up the character's secret coordinate box
-    const character = await prisma.character.findUnique({
-      where: { id: parseInt(characterId, 10) },
+    const character = await prisma.character.findFirst({
+      where: {
+        id: Number.parseInt(characterId, 10),
+        mapId: session.mapId,
+      },
     });
 
     if (!character) {

@@ -5,7 +5,7 @@ import FeedbackToast from "./components/FeedbackToast";
 import WinModal from "./components/WinModal";
 import "./App.css";
 
-const API_BASE = "http://localhost:5001/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5001/api";
 
 function App() {
   const [map, setMap] = useState(null);
@@ -65,6 +65,8 @@ function App() {
 
   // Initialize on first load
   useEffect(() => {
+    // Loading remote data is the purpose of this effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadMaps();
   }, []);
 
@@ -82,6 +84,8 @@ function App() {
     if (!map || !isGameActive) return;
     const totalCharacters = map.characters?.length ?? 0;
     if (totalCharacters > 0 && foundCharacters.length === totalCharacters) {
+      // Stop the client timer when the last character is found.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsGameActive(false);
       // Small delay so the last success toast is visible before the modal appears
       setTimeout(() => setShowWinModal(true), 1500);
@@ -141,7 +145,6 @@ function App() {
         <Header
           characters={map.characters || []}
           foundCharacters={foundCharacters}
-          isGameActive={isGameActive}
           elapsedSeconds={elapsedSeconds}
           formatTime={formatTime}
         />

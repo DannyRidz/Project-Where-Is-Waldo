@@ -55,7 +55,7 @@ function WinModal({
       if (!res.ok) throw new Error("Failed to submit score");
       setSubmitted(true);
       setError("");
-    } catch (err) {
+    } catch {
       setError("Failed to save score. Please try again.");
     } finally {
       setIsSubmitting(false);

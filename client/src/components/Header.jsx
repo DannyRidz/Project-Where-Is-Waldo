@@ -1,7 +1,6 @@
 function Header({
   characters,
   foundCharacters,
-  isGameActive,
   elapsedSeconds,
   formatTime,
 }) {
