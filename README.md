@@ -11,6 +11,9 @@ Install dependencies in both folders, then seed the SQLite database:
 ```bash
 cd server
 npm install
+cp .env.example .env
+node src/prepareDatabase.js
+npx prisma generate
 npx prisma migrate deploy
 npx prisma db seed
 npm run dev
@@ -36,8 +39,44 @@ npm run lint
 npm run build
 ```
 
-The second map is an existing Waldo puzzle image from the Hey Waldo dataset;
-see [the image attribution](client/public/images/ATTRIBUTION.md).
+The picker offers three existing Waldo scenes, each with three verified targets.
+See [the image sources](client/public/images/ATTRIBUTION.md).
+
+## How a round works
+
+The image load event starts an anonymous server session. Correct tags are stored
+as unique session/character pairs. The final correct tag freezes the server end
+time; the name form saves that existing time once. Repeating a submission returns
+the existing score. The running timer is a browser display; the final result is
+authoritative server time.
+
+Correct final-tag retries also return the original completion result, so a lost
+response cannot force the player to restart a completed round.
+
+The leaderboard shows the ten fastest verified rounds for each map. Older scores
+without a session link remain in SQLite but are excluded because their original
+times were calculated at name submission. Coordinate updates preserve map IDs,
+character IDs, sessions, and existing scores. Start a fresh round after updating
+targets.
+
+## Repeatable verification
+
+From the project root, with both sets of dependencies installed:
+
+```bash
+node scripts/verify-build.mjs
+node scripts/verify-api.mjs
+node scripts/verify-browser.mjs
+```
+
+The API checks use temporary databases, including an upgrade fixture with an
+existing score. They require the SQLite command-line tool (`sqlite3`). Browser
+checks use the Playwright CLI through npm, require Chrome, and save screenshots
+under `output/playwright/`. Both checks stop their own servers and remove their
+temporary databases without modifying your local game data.
+
+Prisma's configuration dependency is pinned to the patched `deepmerge-ts` 8.0.0
+through an npm override. Keep this override until Prisma includes the fix.
 
 ## Deploy on Render (free demo)
 

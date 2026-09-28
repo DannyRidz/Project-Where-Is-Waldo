@@ -11,3 +11,6 @@ server/prisma/dev.db-journal
 # Build output
 dist/
 build/
+# Local browser verification artifacts
+.playwright-cli/
+output/playwright/

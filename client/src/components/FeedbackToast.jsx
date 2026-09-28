@@ -11,15 +11,17 @@ function FeedbackToast({ message, type, onDismiss }) {
   useEffect(() => {
     if (!message) return;
 
+    let dismissTimer;
     const showTimer = setTimeout(() => setVisible(true), 0);
     const hideTimer = setTimeout(() => {
       setVisible(false);
-      setTimeout(() => dismissRef.current(), 300); // Wait for fade-out before clearing
+      dismissTimer = setTimeout(() => dismissRef.current(), 300);
     }, 2000);
 
     return () => {
       clearTimeout(showTimer);
       clearTimeout(hideTimer);
+      clearTimeout(dismissTimer);
     };
   }, [message]);
 

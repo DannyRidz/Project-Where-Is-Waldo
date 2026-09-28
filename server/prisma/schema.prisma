@@ -27,6 +27,7 @@ model Character {
   yMax      Float
   mapId     Int
   map       Map     @relation(fields: [mapId], references: [id], onDelete: Cascade)
+  foundTags FoundTag[]
 }
 
 model GameSession {
@@ -35,6 +36,9 @@ model GameSession {
   endTime   DateTime?
   mapId     Int
   map       Map       @relation(fields: [mapId], references: [id], onDelete: Cascade)
+
+  foundTags FoundTag[]
+  score     Score?
 }
 
 model Score {
@@ -44,4 +48,17 @@ model Score {
   createdAt     DateTime @default(now())
   mapId         Int
   map           Map      @relation(fields: [mapId], references: [id], onDelete: Cascade)
+  sessionId String?      @unique
+  session   GameSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+}
+
+model FoundTag {
+  id          Int         @id @default(autoincrement())
+  sessionId   String
+  characterId Int
+
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  character Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, characterId])
 }

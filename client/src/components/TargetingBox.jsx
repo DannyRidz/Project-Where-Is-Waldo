@@ -26,7 +26,7 @@ function TargetingBox({
       </div>
 
       {/* Dropdown Menu of remaining characters */}
-      <div className="targeting-dropdown">
+      <div className="targeting-dropdown" style={{ transform: `translateX(${position.dropdownOffset || 0}px)` }}>
         <div className="dropdown-title">Who is this?</div>
         {remainingCharacters.map((char) => (
           <button
@@ -37,7 +37,7 @@ function TargetingBox({
           >
             <img
               src={char.avatarUrl}
-              alt={char.name}
+              alt=""
               className="dropdown-avatar"
             />
             <span>{char.name}</span>

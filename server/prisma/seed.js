@@ -1,82 +1,41 @@
 import { PrismaClient } from "@prisma/client";
+import { maps } from "./maps.js";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  // Store each map and its locations together. Existing scores and sessions
-  // are retained when you re-run the seed script.
-  const maps = [
-    {
-      name: "Waldo at the Beach",
-      imageUrl: "/images/waldo-beach.jpg",
-      characters: [
-          {
-            name: "Waldo",
-            avatarUrl: "/images/waldo.svg",
-            xMin: 59.0,
-            xMax: 64.0,
-            yMin: 32.0,
-            yMax: 37.0,
-          },
-          {
-            name: "Wizard Whitebeard",
-            avatarUrl: "/images/wizard.svg",
-            xMin: 85.5,
-            xMax: 90.5,
-            yMin: 35.0,
-            yMax: 40.0,
-          },
-          {
-            name: "Odlaw",
-            avatarUrl: "/images/odlaw.svg",
-            xMin: 21.0,
-            xMax: 26.0,
-            yMin: 32.5,
-            yMax: 37.5,
-          },
-      ],
-    },
-    {
-      name: "The Gobbling Gluttons",
-      imageUrl: "/images/waldo-gluttons.jpg",
-      characters: [
-        // The source dataset includes Waldo labels; this map intentionally
-        // asks the player to find Waldo only.
-        { name: "Waldo", avatarUrl: "/images/waldo.svg", xMin: 90, xMax: 99, yMin: 27, yMax: 38 },
-      ],
-    },
-  ];
+  for (const { characters, ...mapData } of maps) {
+    await prisma.$transaction(async (tx) => {
+      const existingMap = await tx.map.findFirst({
+        where: {
+          OR: [
+            { name: mapData.name },
+            { imageUrl: mapData.imageUrl },
+            ...(mapData.name === "The Gobbling Gluttons" ? [{ name: "The Colorful Crowd" }] : []),
+          ],
+        },
+      });
+      const map = existingMap
+        ? await tx.map.update({ where: { id: existingMap.id }, data: mapData })
+        : await tx.map.create({ data: mapData });
 
-  for (const mapData of maps) {
-    const { characters, ...map } = mapData;
-    const existingMap = await prisma.map.findFirst({
-      where: {
-        OR: [
-          { name: map.name },
-          ...(map.name === "The Gobbling Gluttons" ? [{ name: "The Colorful Crowd" }] : []),
-        ],
-      },
-      include: { _count: { select: { characters: true } } },
+      // Update locations in place so existing sessions, tags, and scores survive.
+      for (const characterData of characters) {
+        const existingCharacter = await tx.character.findFirst({
+          where: { mapId: map.id, name: characterData.name },
+        });
+        if (existingCharacter) {
+          await tx.character.update({ where: { id: existingCharacter.id }, data: characterData });
+        } else {
+          await tx.character.create({ data: { ...characterData, mapId: map.id } });
+        }
+      }
+      console.log(`Updated map: "${map.name}" with ${characters.length} targets`);
     });
-    // Startup seeds only fill missing maps; retain character IDs for sessions.
-    if (existingMap?.name === map.name && existingMap._count.characters > 0) {
-      console.log(`Map already seeded: "${map.name}"`);
-      continue;
-    }
-    const data = { ...map, characters: { deleteMany: {}, create: characters } };
-    const created = existingMap
-      ? await prisma.map.update({ where: { id: existingMap.id }, data })
-      : await prisma.map.create({ data: { ...map, characters: { create: characters } } });
-    console.log(`Seeded map: "${created.name}" with ID: ${created.id}`);
   }
-
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+}).finally(() => prisma.$disconnect());

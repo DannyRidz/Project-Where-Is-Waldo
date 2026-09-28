@@ -4,6 +4,30 @@ import { PrismaClient } from "@prisma/client";
 const router = Router();
 const prisma = new PrismaClient();
 
+function rejectRequest(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  throw error;
+}
+
+function calculateTime(session) {
+  const milliseconds = session.endTime.getTime() - session.startTime.getTime();
+
+  return Number((milliseconds / 1000).toFixed(2));
+}
+
+async function validateTransaction(callback) {
+  // SQLite serializes writes. Retry a transaction rolled back by a competing tag.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(callback);
+    } catch (error) {
+      if (!["P2034", "P2028"].includes(error.code) || attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 30 * (attempt + 1)));
+    }
+  }
+}
+
 // 0. Fetch all maps
 router.get("/maps", async (req, res) => {
   try {
@@ -24,7 +48,8 @@ router.get("/maps", async (req, res) => {
 // 1. Fetch map data and list of characters (WITHOUT coordinates)
 router.get("/maps/:id", async (req, res) => {
   try {
-    const mapId = parseInt(req.params.id, 10);
+    const mapId = Number(req.params.id);
+    if (!Number.isInteger(mapId) || mapId < 1) return res.status(400).json({ error: "Invalid map ID." });
     const map = await prisma.map.findUnique({
       where: { id: mapId },
       select: {
@@ -56,8 +81,8 @@ router.get("/maps/:id", async (req, res) => {
 // 2. Start a new game session (records start time on server)
 router.post("/sessions/start", async (req, res) => {
   try {
-    const mapId = Number.parseInt(req.body.mapId, 10);
-    if (!Number.isInteger(mapId)) {
+    const mapId = req.body.mapId;
+    if (!Number.isInteger(mapId) || mapId < 1) {
       return res.status(400).json({ error: "mapId is required" });
     }
 
@@ -89,48 +114,124 @@ router.post("/sessions/:sessionId/validate", async (req, res) => {
     const { sessionId } = req.params;
     const { characterId, x, y } = req.body;
 
-    if (characterId === undefined || x === undefined || y === undefined) {
-      return res
-        .status(400)
-        .json({ error: "characterId, x, and y coordinates are required" });
+    if (
+      !Number.isInteger(characterId) ||
+      !Number.isFinite(x) ||
+      !Number.isFinite(y) ||
+      x < 0 ||
+      x > 100 ||
+      y < 0 ||
+      y > 100
+    ) {
+      return res.status(400).json({
+        error: "Provide a character ID and coordinates between 0 and 100.",
+      });
     }
 
-    // Verify session exists
-    const session = await prisma.gameSession.findUnique({
-      where: { id: sessionId },
+    const result = await validateTransaction(async (tx) => {
+      const session = await tx.gameSession.findUnique({
+        where: { id: sessionId },
+      });
+
+      if (!session) {
+        rejectRequest(404, "Session not found.");
+      }
+
+      const character = await tx.character.findFirst({
+        where: {
+          id: characterId,
+          mapId: session.mapId,
+        },
+      });
+
+      if (!character) {
+        rejectRequest(404, "Character not found on this map.");
+      }
+
+      const isCorrect =
+        x >= character.xMin &&
+        x <= character.xMax &&
+        y >= character.yMin &&
+        y <= character.yMax;
+
+      if (!isCorrect) {
+        if (session.endTime) rejectRequest(409, "This round has already finished.");
+        return {
+          isCorrect: false,
+          completed: false,
+        };
+      }
+
+      if (session.endTime) {
+        const existingTag = await tx.foundTag.findUnique({ where: { sessionId_characterId: { sessionId, characterId } } });
+        if (!existingTag) rejectRequest(409, "This round has already finished.");
+      } else await tx.foundTag.upsert({
+        where: {
+          sessionId_characterId: {
+            sessionId,
+            characterId,
+          },
+        },
+        update: {},
+        create: {
+          sessionId,
+          characterId,
+        },
+      });
+
+      const foundCount = await tx.foundTag.count({
+        where: { sessionId },
+      });
+
+      const totalCharacters = await tx.character.count({
+        where: { mapId: session.mapId },
+      });
+
+      const completed = totalCharacters > 0 && foundCount === totalCharacters;
+
+      let timeInSeconds = null;
+      let qualifiesForLeaderboard = false;
+
+      if (completed) {
+        // A retry after a lost final-tag response must return the same frozen time.
+        const finishedSession = session.endTime ? session : await tx.gameSession.update({
+          where: { id: sessionId },
+          data: { endTime: new Date() },
+        });
+
+        timeInSeconds = calculateTime(finishedSession);
+
+        const topScores = await tx.score.findMany({
+          where: { mapId: session.mapId, sessionId: { not: null } },
+          orderBy: [{ timeInSeconds: "asc" }, { id: "asc" }],
+          take: 10,
+        });
+
+        qualifiesForLeaderboard =
+          topScores.length < 10 ||
+          timeInSeconds < topScores[topScores.length - 1].timeInSeconds;
+      }
+
+      return {
+        isCorrect: true,
+        characterId: character.id,
+        characterName: character.name,
+        marker: { x: (character.xMin + character.xMax) / 2, y: (character.yMin + character.yMax) / 2 },
+        completed,
+        timeInSeconds,
+        qualifiesForLeaderboard,
+      };
     });
 
-    if (!session) {
-      return res.status(404).json({ error: "Invalid or expired session" });
-    }
-
-    // Look up the character's secret coordinate box
-    const character = await prisma.character.findFirst({
-      where: {
-        id: Number.parseInt(characterId, 10),
-        mapId: session.mapId,
-      },
-    });
-
-    if (!character) {
-      return res.status(404).json({ error: "Character not found" });
-    }
-
-    // Check if clicked percentage (x, y) falls inside the bounding box
-    const isCorrect =
-      x >= character.xMin &&
-      x <= character.xMax &&
-      y >= character.yMin &&
-      y <= character.yMax;
-
-    res.json({
-      isCorrect,
-      characterId: character.id,
-      characterName: character.name,
-    });
+    res.json(result);
   } catch (error) {
-    console.error("Error validating coordinates:", error);
-    res.status(500).json({ error: "Internal server error" });
+    if (!error.status) console.error("Validation failed:", error);
+
+    res.status(error.status || 500).json({
+      error: error.status
+        ? error.message
+        : "Could not validate this tag. Please try again.",
+    });
   }
 });
 
@@ -140,8 +241,14 @@ router.post("/sessions/:sessionId/finish", async (req, res) => {
     const { sessionId } = req.params;
     const { playerName } = req.body;
 
-    if (!playerName || !playerName.trim()) {
-      return res.status(400).json({ error: "Player name is required" });
+    if (
+      typeof playerName !== "string" ||
+      !playerName.trim() ||
+      playerName.trim().length > 30
+    ) {
+      return res.status(400).json({
+        error: "Enter a name between 1 and 30 characters.",
+      });
     }
 
     const session = await prisma.gameSession.findUnique({
@@ -149,46 +256,54 @@ router.post("/sessions/:sessionId/finish", async (req, res) => {
     });
 
     if (!session) {
-      return res.status(404).json({ error: "Session not found" });
+      return res.status(404).json({
+        error: "Session not found.",
+      });
     }
 
-    const endTime = new Date();
-    // Calculate elapsed time in seconds from server start time
-    const timeInSeconds =
-      (endTime.getTime() - new Date(session.startTime).getTime()) / 1000;
+    if (!session.endTime) {
+      return res.status(409).json({
+        error: "Find all characters before submitting a score.",
+      });
+    }
 
-    // Update session with end time
-    await prisma.gameSession.update({
-      where: { id: sessionId },
-      data: { endTime },
-    });
-
-    // Save to Leaderboard
-    const score = await prisma.score.create({
-      data: {
+    const score = await prisma.score.upsert({
+      where: { sessionId },
+      update: {},
+      create: {
+        sessionId,
         playerName: playerName.trim(),
-        timeInSeconds: parseFloat(timeInSeconds.toFixed(2)),
+        timeInSeconds: calculateTime(session),
         mapId: session.mapId,
       },
     });
 
     res.json({
-      message: "Score recorded successfully!",
+      message: "Score saved.",
       score,
     });
   } catch (error) {
-    console.error("Error finishing session:", error);
-    res.status(500).json({ error: "Internal server error" });
+    if (error.code === "P2002") {
+      const existing = await prisma.score.findUnique({ where: { sessionId: req.params.sessionId } });
+      if (existing) return res.json({ message: "Score already saved.", score: existing });
+    }
+    console.error("Score submission failed:", error);
+
+    res.status(error.code === "P2002" ? 409 : 500).json({
+      error: "Could not save the score. Please try again.",
+    });
   }
 });
 
 // 5. Get Top 10 High Scores for a map
 router.get("/maps/:id/scores", async (req, res) => {
   try {
-    const mapId = parseInt(req.params.id, 10);
+    const mapId = Number(req.params.id);
+    if (!Number.isInteger(mapId) || mapId < 1) return res.status(400).json({ error: "Invalid map ID." });
+    if (!(await prisma.map.findUnique({ where: { id: mapId } }))) return res.status(404).json({ error: "Map not found." });
     const topScores = await prisma.score.findMany({
-      where: { mapId },
-      orderBy: { timeInSeconds: "asc" },
+      where: { mapId, sessionId: { not: null } },
+      orderBy: [{ timeInSeconds: "asc" }, { id: "asc" }],
       take: 10,
     });
 
