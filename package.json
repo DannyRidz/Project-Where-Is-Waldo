@@ -1,0 +1,9 @@
+{
+  "name": "where-is-waldo",
+  "private": true,
+  "engines": { "node": ">=22.12.0 <23" },
+  "scripts": {
+    "build": "npm ci --prefix client --include=dev && npm ci --prefix server --include=dev && npm --prefix client run build && npm --prefix server run db:generate",
+    "start": "npm --prefix server run start:render"
+  }
+}

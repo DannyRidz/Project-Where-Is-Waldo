@@ -50,8 +50,19 @@ async function main() {
   for (const mapData of maps) {
     const { characters, ...map } = mapData;
     const existingMap = await prisma.map.findFirst({
-      where: { OR: [{ name: map.name }, { name: "The Colorful Crowd" }] },
+      where: {
+        OR: [
+          { name: map.name },
+          ...(map.name === "The Gobbling Gluttons" ? [{ name: "The Colorful Crowd" }] : []),
+        ],
+      },
+      include: { _count: { select: { characters: true } } },
     });
+    // Startup seeds only fill missing maps; retain character IDs for sessions.
+    if (existingMap?.name === map.name && existingMap._count.characters > 0) {
+      console.log(`Map already seeded: "${map.name}"`);
+      continue;
+    }
     const data = { ...map, characters: { deleteMany: {}, create: characters } };
     const created = existingMap
       ? await prisma.map.update({ where: { id: existingMap.id }, data })

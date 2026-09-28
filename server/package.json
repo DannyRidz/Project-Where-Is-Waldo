@@ -5,7 +5,9 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "db:generate": "prisma generate",
+    "start:render": "node src/prepareDatabase.js && prisma migrate deploy && prisma db seed && node src/app.js"
   },
   "keywords": [],
   "author": "",
